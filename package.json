@@ -1,0 +1,31 @@
+{
+  "name": "perf-copilot",
+  "version": "0.1.0",
+  "description": "Autonomous Core Web Vitals audit engine and AI agent skill scaffolder",
+  "type": "module",
+  "main": "src/index.mjs",
+  "bin": {
+    "perf-copilot": "./bin/cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "lighthouse",
+    "performance",
+    "web-vitals",
+    "core-web-vitals",
+    "lcp",
+    "tbt",
+    "cls",
+    "ai-agent",
+    "agent-skills",
+    "nextjs"
+  ],
+  "author": "WhatATalk Team",
+  "license": "MIT",
+  "dependencies": {
+    "chrome-launcher": "^1.1.2",
+    "lighthouse": "^12.4.0"
+  }
+}

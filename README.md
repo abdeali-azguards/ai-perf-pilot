@@ -265,4 +265,4 @@ The page didn't finish loading in 30 seconds. Look for requests that never compl
 
 ## License
 
-MIT, Team Azguards | Azguards Technolabs
+MIT, Azguards Technolabs

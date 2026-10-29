@@ -23,9 +23,9 @@ This skill provides an automated, safe procedure for testing live web page speed
 ### Stage 2: Run the Audit
 Execute the performance audit command using markdown format for clean token digestion:
 ```bash
-npx perf-pilot audit --format markdown
+npx perf-pilot audit --runs 3 --format markdown
 # Or for a specific route:
-npx perf-pilot audit --url http://localhost:3000/contact --format markdown
+npx perf-pilot audit --url http://localhost:3000/contact --runs 3 --format markdown
 ```
 Read the generated scorecard and top actionable bottlenecks.
 
@@ -52,8 +52,9 @@ Present the diagnostic findings and the proposed plan to the user:
 
 ### Stage 5: Execution & Verification
 1. Apply the approved code modifications.
-2. Re-run the audit:
+2. Re-run the audit with several runs, because a single Lighthouse run can vary by several points and a small "improvement" may just be noise:
    ```bash
-   npx perf-pilot audit --format markdown
+   npx perf-pilot audit --runs 3 --format markdown
    ```
-3. Compare the baseline scorecard with the new scorecard and present a before/after summary table to the user.
+   Use the same `--url` and mode as the baseline, and take the baseline with `--runs 3` as well so the two are comparable.
+3. Compare the baseline scorecard with the new scorecard and present a before/after summary table to the user. Only call something an improvement if the change is larger than the spread between the run scores shown in the output.

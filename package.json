@@ -41,7 +41,7 @@
     "agent-skills",
     "nextjs"
   ],
-  "author": "Team Azguards | Azguards Technolabs",
+  "author": "Azguards Technolabs",
   "license": "MIT",
   "dependencies": {
     "chrome-launcher": "^1.1.2",

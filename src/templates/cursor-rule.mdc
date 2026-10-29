@@ -9,7 +9,7 @@ alwaysApply: false
 When the user asks to review, audit, or optimize web performance, follow these guidelines:
 
 1. **Pre-flight**: Verify that the application server is running locally (e.g., `http://localhost:3000`).
-2. **Audit Execution**: Run `npx perf-pilot audit --format markdown` (or for a specific route: `npx perf-pilot audit --url <URL> --format markdown`).
+2. **Audit Execution**: Run `npx perf-pilot audit --runs 3 --format markdown` (or for a specific route: `npx perf-pilot audit --url <URL> --runs 3 --format markdown`). Several runs smooth out Lighthouse's run-to-run variation.
 3. **Analyze Bottlenecks**: Check Core Web Vitals (LCP, TBT, CLS). Identify the exact asset or script causing delays.
 4. **Mandatory Confirmation**: Present your findings, estimated savings, and proposed code changes. **Wait for user confirmation before modifying code**.
-5. **Verify**: Apply edits, re-run `npx perf-pilot audit`, and provide a Before vs. After comparison.
+5. **Verify**: Apply edits, re-run the same command (same URL, `--runs 3`), and provide a Before vs. After comparison. Only call a change an improvement if it is larger than the spread between the run scores.

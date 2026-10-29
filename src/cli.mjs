@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { checkServerReachable, launchChrome } from './engine/launcher.mjs';
 import { runLighthouse } from './engine/lighthouse.mjs';
-import { fetchSitemapRoutes, mergeRoutes } from './engine/sitemap.mjs';
+import { fetchSitemapRoutes, mergeRoutes, originOf } from './engine/sitemap.mjs';
 import { DEFAULT_THRESHOLDS, evaluateThresholds } from './engine/thresholds.mjs';
 import { formatJson } from './formatters/json.mjs';
 import { formatMarkdown } from './formatters/markdown.mjs';
@@ -142,10 +142,11 @@ export async function main() {
   // 2. Discover URLs to Audit
   let urlsToAudit = [targetUrl];
   if (config.site) {
-    if (format === 'terminal') console.log(`🔍 Discovering routes from ${targetUrl}/sitemap.xml...`);
+    if (format === 'terminal') console.log(`🔍 Discovering routes from ${originOf(targetUrl)}/sitemap.xml...`);
     const limit = config.limit || 5;
-    const discovered = localConfig.discoverSitemap === false ? [] : await fetchSitemapRoutes(targetUrl);
-    urlsToAudit = mergeRoutes(targetUrl, localConfig.routes, discovered, limit);
+    const siteBase = originOf(targetUrl);
+    const discovered = localConfig.discoverSitemap === false ? [] : await fetchSitemapRoutes(siteBase);
+    urlsToAudit = mergeRoutes(siteBase, localConfig.routes, discovered, limit);
     if (urlsToAudit.length === 0) urlsToAudit = [targetUrl];
   }
 

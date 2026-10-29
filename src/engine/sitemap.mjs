@@ -47,6 +47,22 @@ export function extractLocalRoutes(urls, localBase) {
 }
 
 /**
+ * Reduce a URL to its origin (scheme, host and port), which is where
+ * /sitemap.xml lives. Input that is not a valid URL is returned unchanged
+ * minus trailing slashes.
+ *
+ * @param {string} url
+ * @returns {string}
+ */
+export function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return url.replace(/\/+$/, '');
+  }
+}
+
+/**
  * Combine routes listed in perf.config.mjs with routes discovered from the
  * sitemap. Config routes come first; duplicates (ignoring a trailing slash)
  * are dropped.

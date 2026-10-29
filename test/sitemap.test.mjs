@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSitemapXml, extractLocalRoutes, mergeRoutes } from '../src/engine/sitemap.mjs';
+import { parseSitemapXml, extractLocalRoutes, mergeRoutes, originOf } from '../src/engine/sitemap.mjs';
 import { checkServerReachable } from '../src/engine/launcher.mjs';
 
 describe('Sitemap parser & URL helpers', () => {
@@ -42,6 +42,15 @@ describe('Sitemap parser & URL helpers', () => {
   it('applies the limit after merging', () => {
     const merged = mergeRoutes('http://localhost:3000', [], ['http://localhost:3000/a', 'http://localhost:3000/b'], 1);
     assert.deepEqual(merged, ['http://localhost:3000/a']);
+  });
+
+  it('originOf strips paths, queries and trailing slashes', () => {
+    assert.equal(originOf('http://localhost:3000/blog?x=1'), 'http://localhost:3000');
+    assert.equal(originOf('http://localhost:3000/'), 'http://localhost:3000');
+  });
+
+  it('originOf returns invalid input unchanged without throwing', () => {
+    assert.equal(originOf('not a url'), 'not a url');
   });
 
   it('correctly reports unreachable server on closed port', async () => {

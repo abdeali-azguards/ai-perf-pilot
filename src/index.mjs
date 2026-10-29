@@ -1,6 +1,6 @@
 export { launchChrome, checkServerReachable } from './engine/launcher.mjs';
 export { runLighthouse, normalizeAuditResults, getMetricRating } from './engine/lighthouse.mjs';
-export { parseSitemapXml, extractLocalRoutes, fetchSitemapRoutes } from './engine/sitemap.mjs';
+export { parseSitemapXml, extractLocalRoutes, mergeRoutes, originOf, fetchSitemapRoutes } from './engine/sitemap.mjs';
 export { formatJson } from './formatters/json.mjs';
 export { formatMarkdown } from './formatters/markdown.mjs';
 export { formatTerminal } from './formatters/terminal.mjs';

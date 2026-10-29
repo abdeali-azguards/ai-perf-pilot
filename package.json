@@ -7,6 +7,14 @@
   "bin": {
     "perf-pilot": "./bin/cli.mjs"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abdeali-azguards/ai-perf-pilot.git"
+  },
+  "homepage": "https://github.com/abdeali-azguards/ai-perf-pilot#readme",
+  "bugs": {
+    "url": "https://github.com/abdeali-azguards/ai-perf-pilot/issues"
+  },
   "files": [
     "bin",
     "src"

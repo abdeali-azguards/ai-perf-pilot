@@ -12,12 +12,24 @@ describe('CLI argument parsing', () => {
     assert.equal(parsed.format, 'markdown');
   });
 
-  it('defaults to mobile, terminal format, and root url when omitted', () => {
+  it('defaults to mobile and terminal format, leaving url unset so config can supply it', () => {
     const parsed = parseCliArgs(['audit']);
     assert.equal(parsed.command, 'audit');
     assert.equal(parsed.desktop, false);
     assert.equal(parsed.format, 'terminal');
-    assert.equal(parsed.url, 'http://localhost:3000');
+    assert.equal(parsed.url, undefined);
+    assert.equal(parsed.check, false);
+  });
+
+  it('--fail-under implies --check and carries the score', () => {
+    const parsed = parseCliArgs(['audit', '--fail-under', '90']);
+    assert.equal(parsed.check, true);
+    assert.equal(parsed.failUnder, 90);
+  });
+
+  it('parses init --force', () => {
+    assert.equal(parseCliArgs(['init', '--force']).force, true);
+    assert.equal(parseCliArgs(['init']).force, false);
   });
 
   it('recognizes init command', () => {

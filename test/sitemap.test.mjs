@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSitemapXml, extractLocalRoutes } from '../src/engine/sitemap.mjs';
+import { parseSitemapXml, extractLocalRoutes, mergeRoutes } from '../src/engine/sitemap.mjs';
 import { checkServerReachable } from '../src/engine/launcher.mjs';
 
 describe('Sitemap parser & URL helpers', () => {
@@ -24,6 +24,24 @@ describe('Sitemap parser & URL helpers', () => {
   it('returns root route fallback when XML is malformed', () => {
     const fallback = parseSitemapXml('NOT_XML');
     assert.deepEqual(fallback, ['/']);
+  });
+
+  it('merges config routes ahead of discovered ones and drops duplicates', () => {
+    const merged = mergeRoutes(
+      'http://localhost:3000/',
+      [{ name: 'Home', path: '/' }, { name: 'Pricing', path: 'pricing' }],
+      ['http://localhost:3000/', 'http://localhost:3000/pricing/', 'http://localhost:3000/blog'],
+    );
+    assert.deepEqual(merged, [
+      'http://localhost:3000/',
+      'http://localhost:3000/pricing',
+      'http://localhost:3000/blog',
+    ]);
+  });
+
+  it('applies the limit after merging', () => {
+    const merged = mergeRoutes('http://localhost:3000', [], ['http://localhost:3000/a', 'http://localhost:3000/b'], 1);
+    assert.deepEqual(merged, ['http://localhost:3000/a']);
   });
 
   it('correctly reports unreachable server on closed port', async () => {

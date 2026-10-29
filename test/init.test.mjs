@@ -38,6 +38,25 @@ describe('Scaffolder init', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it('installs the skill for Claude Code and keeps edited files unless forced', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'perf-init-keep-'));
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({ name: 'app', scripts: {} }));
+
+    await scaffoldProject(tmpDir, { installDependency: false, silent: true });
+    const claudeSkill = path.join(tmpDir, '.claude', 'skills', 'performance-audit', 'SKILL.md');
+    assert.equal(fs.existsSync(claudeSkill), true, 'Claude Code skill must be created');
+
+    fs.writeFileSync(claudeSkill, 'my edits');
+    const kept = await scaffoldProject(tmpDir, { installDependency: false, silent: true });
+    assert.equal(fs.readFileSync(claudeSkill, 'utf-8'), 'my edits');
+    assert.deepEqual(kept.filesKept, [claudeSkill]);
+
+    await scaffoldProject(tmpDir, { installDependency: false, silent: true, force: true });
+    assert.match(fs.readFileSync(claudeSkill, 'utf-8'), /name: performance-audit/);
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it('handles generic non-next projects', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'perf-init-gen-'));
     fs.writeFileSync(

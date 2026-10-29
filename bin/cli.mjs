@@ -2,11 +2,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { checkServerReachable, launchChrome } from '../src/engine/launcher.mjs';
 import { runLighthouse } from '../src/engine/lighthouse.mjs';
-import { fetchSitemapRoutes } from '../src/engine/sitemap.mjs';
+import { fetchSitemapRoutes, mergeRoutes } from '../src/engine/sitemap.mjs';
+import { DEFAULT_THRESHOLDS, evaluateThresholds } from '../src/engine/thresholds.mjs';
 import { formatJson } from '../src/formatters/json.mjs';
 import { formatMarkdown } from '../src/formatters/markdown.mjs';
 import { formatTerminal } from '../src/formatters/terminal.mjs';
@@ -28,6 +29,9 @@ export function parseCliArgs(rawArgs = process.argv.slice(2)) {
     site: { type: 'boolean', default: false },
     limit: { type: 'string' },
     'output-dir': { type: 'string', default: '.perf-reports' },
+    check: { type: 'boolean', default: false },
+    'fail-under': { type: 'string' },
+    force: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
     version: { type: 'boolean', short: 'v', default: false },
   };
@@ -43,7 +47,7 @@ export function parseCliArgs(rawArgs = process.argv.slice(2)) {
   let command = positionals[0] || 'audit';
 
   if (command === 'init' || command === 'setup') {
-    return { command: 'init' };
+    return { command: 'init', force: Boolean(parsed.values.force) };
   }
 
   if (parsed.values.help || command === 'help') {
@@ -51,15 +55,19 @@ export function parseCliArgs(rawArgs = process.argv.slice(2)) {
   }
 
   const limitNum = parsed.values.limit ? parseInt(parsed.values.limit, 10) : (parsed.values.site ? 5 : null);
+  const failUnder = parsed.values['fail-under'] !== undefined ? Number(parsed.values['fail-under']) : null;
 
   return {
     command: 'audit',
-    url: parsed.values.url || 'http://localhost:3000',
+    // Left undefined when --url is absent so perf.config.mjs can supply baseUrl.
+    url: parsed.values.url,
     desktop: Boolean(parsed.values.desktop),
     format: parsed.values.format || 'terminal',
     site: Boolean(parsed.values.site),
     limit: limitNum,
     outputDir: parsed.values['output-dir'] || '.perf-reports',
+    check: Boolean(parsed.values.check) || failUnder !== null,
+    failUnder: Number.isFinite(failUnder) ? failUnder : null,
   };
 }
 
@@ -71,13 +79,20 @@ Usage:
   npx @azguards/ai-perf-pilot init        Scaffold AI skill and project config
   npx perf-pilot audit [options]          Audit live URL or site
 
-Options:
-  --url <URL>           Target URL to audit (default: http://localhost:3000)
-  --desktop             Run unthrottled desktop audit (default: mobile 4G)
+Audit options:
+  --url <URL>           Page to audit (default: baseUrl from perf.config.mjs,
+                        else http://localhost:3000)
+  --desktop             Desktop emulation (default: mobile, simulated slow 4G)
   --format <type>       Output format: terminal | markdown | json (default: terminal)
-  --site                Audit multiple core routes discovered via sitemap.xml
-  --limit <number>      Max number of routes to audit when using --site
-  --output-dir <path>   Directory to save report artifacts (default: .perf-reports)
+  --site                Audit routes from perf.config.mjs plus /sitemap.xml
+  --limit <number>      Max number of pages when using --site (default: 5)
+  --output-dir <path>   Directory for report files (default: .perf-reports)
+  --check               Exit with code 2 if a perf.config.mjs threshold is missed
+  --fail-under <score>  Like --check, but sets the minimum performance score
+
+Init options:
+  --force               Overwrite skill and rule files that you have edited
+
   -h, --help            Show this help message
 `);
 }
@@ -94,7 +109,7 @@ export async function main() {
   }
 
   if (config.command === 'init') {
-    await scaffoldProject(process.cwd());
+    await scaffoldProject(process.cwd(), { installDependency: true, force: config.force });
     return;
   }
 
@@ -103,9 +118,11 @@ export async function main() {
   const configPath = path.join(process.cwd(), 'perf.config.mjs');
   if (fs.existsSync(configPath)) {
     try {
-      const mod = await import(`file://${configPath}`);
+      const mod = await import(pathToFileURL(configPath).href);
       localConfig = mod.default || {};
-    } catch {}
+    } catch (err) {
+      console.error(`Warning: could not load perf.config.mjs (${err.message}). Using defaults.`);
+    }
   }
 
   const targetUrl = config.url || localConfig.baseUrl || 'http://localhost:3000';
@@ -130,7 +147,10 @@ export async function main() {
   let urlsToAudit = [targetUrl];
   if (config.site) {
     if (format === 'terminal') console.log(`🔍 Discovering routes from ${targetUrl}/sitemap.xml...`);
-    urlsToAudit = await fetchSitemapRoutes(targetUrl, config.limit || 5);
+    const limit = config.limit || 5;
+    const discovered = localConfig.discoverSitemap === false ? [] : await fetchSitemapRoutes(targetUrl);
+    urlsToAudit = mergeRoutes(targetUrl, localConfig.routes, discovered, limit);
+    if (urlsToAudit.length === 0) urlsToAudit = [targetUrl];
   }
 
   // 3. Launch Headless Chrome
@@ -171,6 +191,24 @@ export async function main() {
       console.log(formatTerminal(res));
     }
     console.log(`📁 Detailed reports saved to: ${path.relative(process.cwd(), outDir)}/\n`);
+  }
+
+  // 6. Optional threshold gate for CI
+  if (config.check) {
+    const thresholds = { ...DEFAULT_THRESHOLDS, ...(localConfig.thresholds || {}) };
+    if (config.failUnder !== null) thresholds.performance = config.failUnder;
+
+    const failures = evaluateThresholds(results.map(formatJson), thresholds);
+    if (failures.length > 0) {
+      console.error('\nThreshold check failed:');
+      for (const f of failures) {
+        const rel = f.metric === 'performance' ? 'below' : 'above';
+        console.error(`  ${f.url}: ${f.metric} ${f.actual} is ${rel} the limit of ${f.limit}`);
+      }
+      process.exitCode = 2;
+    } else if (format === 'terminal') {
+      console.log('Threshold check passed.');
+    }
   }
 }
 

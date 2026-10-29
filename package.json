@@ -7,8 +7,19 @@
   "bin": {
     "perf-pilot": "./bin/cli.mjs"
   },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "npm test"
   },
   "keywords": [
     "lighthouse",
@@ -22,7 +33,7 @@
     "agent-skills",
     "nextjs"
   ],
-  "author": "WhatATalk Team",
+  "author": "Team Azguards | Azguards Technolabs",
   "license": "MIT",
   "dependencies": {
     "chrome-launcher": "^1.1.2",

@@ -47,6 +47,35 @@ export function extractLocalRoutes(urls, localBase) {
 }
 
 /**
+ * Combine routes listed in perf.config.mjs with routes discovered from the
+ * sitemap. Config routes come first; duplicates (ignoring a trailing slash)
+ * are dropped.
+ *
+ * @param {string} baseUrl
+ * @param {{ path: string }[]} configRoutes
+ * @param {string[]} discovered - Absolute URLs already remapped onto baseUrl
+ * @param {number} [limit]
+ * @returns {string[]}
+ */
+export function mergeRoutes(baseUrl, configRoutes = [], discovered = [], limit) {
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const fromConfig = configRoutes
+    .filter((r) => r && typeof r.path === 'string')
+    .map((r) => `${cleanBase}${r.path.startsWith('/') ? r.path : `/${r.path}`}`);
+
+  const seen = new Set();
+  const merged = [];
+  for (const url of [...fromConfig, ...discovered]) {
+    const key = url.length > 1 ? url.replace(/\/+$/, '') : url;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(url);
+  }
+
+  return limit && limit > 0 ? merged.slice(0, limit) : merged;
+}
+
+/**
  * Fetch and extract routes from a site's /sitemap.xml.
  * Gracefully falls back to root route '/' on fetch or parse failure.
  *

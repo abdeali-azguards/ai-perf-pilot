@@ -35,38 +35,41 @@ export async function scaffoldProject(projectRoot, options = {}) {
   log(`  ↳ Package manager:   ${packageManager}`);
 
   const filesCreated = [];
-
-  // 2. Ensure directories exist
-  const skillDir = path.join(projectRoot, '.agents', 'skills', 'performance-audit');
-  const refDir = path.join(skillDir, 'references');
-  const cursorDir = path.join(projectRoot, '.cursor', 'rules');
-
-  fs.mkdirSync(refDir, { recursive: true });
-  fs.mkdirSync(cursorDir, { recursive: true });
-
-  // 3. Write Skill & Documentation Templates
+  const filesKept = [];
   const templatesDir = path.join(PACKAGE_ROOT, 'src', 'templates');
 
-  const skillDest = path.join(skillDir, 'SKILL.md');
-  fs.copyFileSync(path.join(templatesDir, 'SKILL.md'), skillDest);
-  filesCreated.push(skillDest);
+  // 2. Write skill, reference guide and Cursor rule. Files you have edited are
+  // left alone unless --force is passed.
+  const install = (templateName, dest) => {
+    const src = path.join(templatesDir, templateName);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
 
-  const refDest = path.join(refDir, 'nextjs-remediation.md');
-  fs.copyFileSync(path.join(templatesDir, 'nextjs-fixes.md'), refDest);
-  filesCreated.push(refDest);
+    if (fs.existsSync(dest) && !options.force) {
+      if (fs.readFileSync(dest, 'utf-8') !== fs.readFileSync(src, 'utf-8')) {
+        filesKept.push(dest);
+      }
+      return;
+    }
+    fs.copyFileSync(src, dest);
+    filesCreated.push(dest);
+  };
 
-  const cursorDest = path.join(cursorDir, 'perf-audit.mdc');
-  fs.copyFileSync(path.join(templatesDir, 'cursor-rule.mdc'), cursorDest);
-  filesCreated.push(cursorDest);
+  // .agents/skills is read by Antigravity, .claude/skills by Claude Code
+  for (const root of ['.agents', '.claude']) {
+    const skillDir = path.join(projectRoot, root, 'skills', 'performance-audit');
+    install('SKILL.md', path.join(skillDir, 'SKILL.md'));
+    install('nextjs-fixes.md', path.join(skillDir, 'references', 'nextjs-remediation.md'));
+  }
+  install('cursor-rule.mdc', path.join(projectRoot, '.cursor', 'rules', 'perf-audit.mdc'));
 
-  // 4. Write starter perf.config.mjs if not present
+  // 3. Write starter perf.config.mjs if not present
   const configDest = path.join(projectRoot, 'perf.config.mjs');
   if (!fs.existsSync(configDest)) {
     fs.copyFileSync(path.join(templatesDir, 'config.template.mjs'), configDest);
     filesCreated.push(configDest);
   }
 
-  // 5. Update package.json scripts
+  // 4. Update package.json scripts
   const pkgPath = path.join(projectRoot, 'package.json');
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
   pkg.scripts = pkg.scripts || {};
@@ -75,8 +78,11 @@ export async function scaffoldProject(projectRoot, options = {}) {
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
   filesCreated.push(pkgPath);
 
-  // 6. Optional: Install devDependency
-  if (options.installDependency) {
+  // 5. Install the devDependency unless the project already has it
+  const alreadyInstalled = Boolean(
+    pkg.dependencies?.['@azguards/ai-perf-pilot'] || pkg.devDependencies?.['@azguards/ai-perf-pilot']
+  );
+  if (options.installDependency && !alreadyInstalled) {
     log(`\n📦 Installing @azguards/ai-perf-pilot as a devDependency using ${packageManager}...`);
     try {
       let installCmd = 'npm install -D @azguards/ai-perf-pilot';
@@ -91,13 +97,19 @@ export async function scaffoldProject(projectRoot, options = {}) {
   }
 
   log('\n✅ Successfully initialized @azguards/ai-perf-pilot!');
-  log('  - AI skill configured: .agents/skills/performance-audit/SKILL.md');
+  log('  - AI skill configured: .agents/skills/performance-audit/ and .claude/skills/performance-audit/');
   log('  - Cursor rule created: .cursor/rules/perf-audit.mdc');
   log('  - Config generated:    perf.config.mjs');
-  log('  - Scripts added:       npm run perf:audit\n');
+  log('  - Scripts added:       npm run perf:audit');
+  if (filesKept.length > 0) {
+    log('\n  Kept your edited versions of these files (re-run with --force to overwrite):');
+    for (const f of filesKept) log(`    ${path.relative(projectRoot, f)}`);
+  }
+  log('');
 
   return {
     filesCreated,
+    filesKept,
     framework: framework.name,
     packageManager,
   };

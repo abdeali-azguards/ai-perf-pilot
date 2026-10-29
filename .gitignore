@@ -1,0 +1,5 @@
+node_modules/
+.perf-reports/
+.lighthouse-reports/
+package-lock.json
+PUBLISHING.md

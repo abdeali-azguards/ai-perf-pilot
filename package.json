@@ -1,11 +1,11 @@
 {
-  "name": "perf-copilot",
+  "name": "@azguards/ai-perf-pilot",
   "version": "0.1.0",
-  "description": "Autonomous Core Web Vitals audit engine and AI agent skill scaffolder",
+  "description": "Autonomous Core Web Vitals audit engine and AI agent skill scaffolder by Azguards",
   "type": "module",
   "main": "src/index.mjs",
   "bin": {
-    "perf-copilot": "./bin/cli.mjs"
+    "perf-pilot": "./bin/cli.mjs"
   },
   "scripts": {
     "test": "node --test"

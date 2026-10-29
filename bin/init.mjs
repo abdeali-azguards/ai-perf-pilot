@@ -114,11 +114,3 @@ export async function scaffoldProject(projectRoot, options = {}) {
     packageManager,
   };
 }
-
-// If invoked directly from terminal:
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
-  scaffoldProject(process.cwd(), { installDependency: true }).catch((err) => {
-    console.error('Initialization failed:', err.message);
-    process.exit(1);
-  });
-}

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCliArgs } from '../bin/cli.mjs';
+import { parseCliArgs } from '../src/cli.mjs';
 
 describe('CLI argument parsing', () => {
   it('parses audit command with --url, --desktop, and --format flags', () => {

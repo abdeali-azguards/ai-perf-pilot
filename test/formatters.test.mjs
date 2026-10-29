@@ -48,4 +48,11 @@ describe('Formatters', () => {
     // Terminal output should contain ANSI reset or escape codes
     assert.equal(/\x1b\[[0-9;]*m/.test(term), true, 'Terminal output must contain ANSI styling');
   });
+
+  it('mentions the median and every run score when several runs were made', () => {
+    const multi = { ...mockAudit, runs: { count: 3, performanceScores: [0.7, 0.82, 0.9] } };
+    assert.match(formatMarkdown(multi), /Median of 3 runs \(performance: 70, 82, 90\)/);
+    assert.match(formatTerminal(multi), /Median of 3 runs \(performance: 70, 82, 90\)/);
+    assert.doesNotMatch(formatMarkdown(mockAudit), /Median of/);
+  });
 });

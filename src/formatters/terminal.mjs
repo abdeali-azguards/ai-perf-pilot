@@ -37,6 +37,7 @@ export function formatTerminal(audit) {
     '',
     c.bold(`⚡ Performance Audit: ${c.cyan(data.url)} [${data.mode}]`),
     c.dim(`Generated: ${data.timestamp}`),
+    ...(data.runs ? [c.dim(`Median of ${data.runs.count} runs (performance: ${data.runs.performanceScores.join(', ')})`)] : []),
     '',
     c.bold('── Overall Scores ──'),
     `  Performance:     ${formatScore(data.scores.performance)}`,

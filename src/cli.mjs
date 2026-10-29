@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { checkServerReachable, launchChrome } from './engine/launcher.mjs';
-import { runLighthouse } from './engine/lighthouse.mjs';
+import { pickMedianRun } from './engine/aggregate.mjs';
 import { fetchSitemapRoutes, mergeRoutes, originOf } from './engine/sitemap.mjs';
 import { DEFAULT_THRESHOLDS, evaluateThresholds } from './engine/thresholds.mjs';
 import { formatJson } from './formatters/json.mjs';
@@ -25,6 +25,7 @@ export function parseCliArgs(rawArgs = process.argv.slice(2)) {
     site: { type: 'boolean', default: false },
     limit: { type: 'string' },
     'output-dir': { type: 'string', default: '.perf-reports' },
+    runs: { type: 'string' },
     check: { type: 'boolean', default: false },
     'fail-under': { type: 'string' },
     force: { type: 'boolean', default: false },
@@ -52,6 +53,11 @@ export function parseCliArgs(rawArgs = process.argv.slice(2)) {
 
   const limitNum = parsed.values.limit ? parseInt(parsed.values.limit, 10) : (parsed.values.site ? 5 : null);
   const failUnder = parsed.values['fail-under'] !== undefined ? Number(parsed.values['fail-under']) : null;
+  const check = Boolean(parsed.values.check) || failUnder !== null;
+  // A threshold gate judges the median of several runs, because one Lighthouse
+  // run can swing by several points.
+  const requestedRuns = parseInt(parsed.values.runs, 10);
+  const runs = requestedRuns >= 1 ? requestedRuns : (check ? 3 : 1);
 
   return {
     command: 'audit',
@@ -62,7 +68,8 @@ export function parseCliArgs(rawArgs = process.argv.slice(2)) {
     site: Boolean(parsed.values.site),
     limit: limitNum,
     outputDir: parsed.values['output-dir'] || '.perf-reports',
-    check: Boolean(parsed.values.check) || failUnder !== null,
+    runs,
+    check,
     failUnder: Number.isFinite(failUnder) ? failUnder : null,
   };
 }
@@ -83,6 +90,8 @@ Audit options:
   --site                Audit routes from perf.config.mjs plus /sitemap.xml
   --limit <number>      Max number of pages when using --site (default: 5)
   --output-dir <path>   Directory for report files (default: .perf-reports)
+  --runs <number>       Audit each page this many times and report the median run
+                        (default: 1, or 3 with --check)
   --check               Exit with code 2 if a perf.config.mjs threshold is missed
   --fail-under <score>  Like --check, but sets the minimum performance score
 
@@ -150,6 +159,9 @@ export async function main() {
     if (urlsToAudit.length === 0) urlsToAudit = [targetUrl];
   }
 
+  // Lighthouse is heavy to load, so only a real audit pays for it
+  const { runLighthouse } = await import('./engine/lighthouse.mjs');
+
   // 3. Launch Headless Chrome
   if (format === 'terminal') console.log(`🚀 Launching headless Chrome...`);
   const { chrome, port } = await launchChrome();
@@ -157,9 +169,15 @@ export async function main() {
   const results = [];
   try {
     for (const url of urlsToAudit) {
-      if (format === 'terminal') console.log(`⏱️ Auditing ${url} (${isDesktop ? 'desktop' : 'mobile'})...`);
-      const auditData = await runLighthouse(url, { port, desktop: isDesktop });
-      results.push(auditData);
+      const runsForUrl = [];
+      for (let n = 1; n <= config.runs; n++) {
+        if (format === 'terminal') {
+          const runLabel = config.runs > 1 ? `, run ${n}/${config.runs}` : '';
+          console.log(`⏱️ Auditing ${url} (${isDesktop ? 'desktop' : 'mobile'}${runLabel})...`);
+        }
+        runsForUrl.push(await runLighthouse(url, { port, desktop: isDesktop }));
+      }
+      results.push(pickMedianRun(runsForUrl));
     }
   } finally {
     await chrome.kill();

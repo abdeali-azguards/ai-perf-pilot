@@ -14,6 +14,7 @@ A small CLI that runs Lighthouse against a page, boils the result down to Core W
 - [CLI reference](#cli-reference)
 - [Auditing several pages](#auditing-several-pages)
 - [Configuration](#configuration)
+- [Reducing noise](#reducing-noise)
 - [Reading the results](#reading-the-results)
 - [Using it in CI](#using-it-in-ci)
 - [Programmatic use](#programmatic-use)
@@ -107,6 +108,7 @@ perf-pilot audit [options]      Run an audit (this is the default command)
 | `--site` | off | Audit several pages: your configured routes plus the sitemap (see below) |
 | `--limit <n>` | `5` | With `--site`, the maximum number of pages |
 | `--output-dir <path>` | `.perf-reports` | Where to write `scorecard.json` and `summary.md` |
+| `--runs <n>` | `1`, or `3` with `--check` | Audit each page `n` times and report the median run (see [Reducing noise](#reducing-noise)) |
 | `--check` | off | Exit with code `2` if a threshold from `perf.config.mjs` is missed (see [CI](#using-it-in-ci)) |
 | `--fail-under <score>` | | Same as `--check`, with the minimum performance score set on the command line |
 | `-h`, `--help` | | Show help |
@@ -166,6 +168,16 @@ export default {
 
 Command-line flags win over the config. If the file fails to load, you get a warning and the defaults are used.
 
+## Reducing noise
+
+Lighthouse results vary from run to run, so one score is a weak basis for a decision. `--runs` audits each page several times and reports the run with the median performance score:
+
+```bash
+npx perf-pilot audit --runs 5
+```
+
+The reported numbers and the bottleneck list come from that one real run, so they stay consistent with each other. With an even number of runs the lower of the two middle runs is used. Every run's score is shown in the output, and in `scorecard.json` under `runs`. Each extra run adds the time of one full audit per page.
+
 ## Reading the results
 
 Ratings follow Google's published thresholds:
@@ -195,9 +207,9 @@ npx perf-pilot audit --site --fail-under 90
 | `1` | The server was unreachable or the audit crashed. |
 | `2` | The audit finished but at least one page missed a threshold. Each miss is listed on stderr. |
 
-Without a `thresholds` block, `--check` uses performance 85, LCP 2500 ms, TBT 200 ms and CLS 0.1. Only the values you set in the config are overridden.
+`--check` audits each page three times and judges the median run, so one unlucky run doesn't fail your build. Use `--runs` to change that. Without a `thresholds` block, `--check` uses performance 85, LCP 2500 ms, TBT 200 ms and CLS 0.1. Only the values you set in the config are overridden.
 
-`scorecard.json` holds scores on a 0-100 scale. A single-page run writes an object; with `--site` it's an array with one entry per page. The CI runner needs Chrome installed.
+`scorecard.json` holds scores on a 0-100 scale. When a page was audited more than once it also has a `runs` field with the count and every run's performance score. A single-page run writes an object; with `--site` it's an array with one entry per page. The CI runner needs Chrome installed.
 
 ## Programmatic use
 
@@ -220,7 +232,7 @@ Also exported: `checkServerReachable`, `fetchSitemapRoutes`, `parseSitemapXml`, 
 ## Limitations
 
 - **Lab data, not field data.** These are simulated runs on your machine. They're good for finding problems and checking a fix, not for predicting what real users see.
-- **One run per page.** Lighthouse scores vary between runs. Re-run a couple of times before trusting a small difference, and close heavy apps while auditing.
+- **Run-to-run variation.** A single Lighthouse run can swing by several points. Use `--runs 3` (or more) for anything you plan to compare, and close heavy apps while auditing.
 - **No history.** Each run overwrites the previous report in the output directory. Copy `scorecard.json` aside if you want a baseline.
 - **Fix guidance is Next.js-centred.** The audit works on any site, but the bundled remediation guide covers Next.js and React only.
 - **The 30 second navigation timeout** isn't configurable from the CLI.

@@ -27,6 +27,20 @@ describe('CLI argument parsing', () => {
     assert.equal(parsed.failUnder, 90);
   });
 
+  it('runs once by default, three times under --check, or as many as --runs says', () => {
+    assert.equal(parseCliArgs(['audit']).runs, 1);
+    assert.equal(parseCliArgs(['audit', '--check']).runs, 3);
+    assert.equal(parseCliArgs(['audit', '--fail-under', '90']).runs, 3);
+    assert.equal(parseCliArgs(['audit', '--runs', '5']).runs, 5);
+    assert.equal(parseCliArgs(['audit', '--check', '--runs', '1']).runs, 1);
+  });
+
+  it('ignores an invalid --runs value and falls back to the default', () => {
+    assert.equal(parseCliArgs(['audit', '--runs', 'abc']).runs, 1);
+    assert.equal(parseCliArgs(['audit', '--runs', '0']).runs, 1);
+    assert.equal(parseCliArgs(['audit', '--runs', '-2', '--check']).runs, 3);
+  });
+
   it('parses init --force', () => {
     assert.equal(parseCliArgs(['init', '--force']).force, true);
     assert.equal(parseCliArgs(['init']).force, false);

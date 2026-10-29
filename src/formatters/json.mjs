@@ -7,7 +7,7 @@
 export function formatJson(audit) {
   const roundScore = (s) => (s !== undefined && s !== null ? Math.round(s * 100) : null);
 
-  return {
+  const result = {
     url: audit.url,
     mode: audit.mode || 'mobile',
     timestamp: audit.timestamp || new Date().toISOString(),
@@ -26,4 +26,13 @@ export function formatJson(audit) {
     },
     bottlenecks: audit.bottlenecks || [],
   };
+
+  if (audit.runs) {
+    result.runs = {
+      count: audit.runs.count,
+      performanceScores: audit.runs.performanceScores.map(roundScore),
+    };
+  }
+
+  return result;
 }

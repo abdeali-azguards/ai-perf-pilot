@@ -27,6 +27,7 @@ export function formatMarkdown(audit) {
   const lines = [
     `### Performance Scorecard: \`${data.url}\``,
     `*Mode: ${data.mode} | Timestamp: ${data.timestamp}*`,
+    ...(data.runs ? [`*Median of ${data.runs.count} runs (performance: ${data.runs.performanceScores.join(', ')})*`] : []),
     '',
     '#### Overall Scores',
     '| Category | Score | Status |',
